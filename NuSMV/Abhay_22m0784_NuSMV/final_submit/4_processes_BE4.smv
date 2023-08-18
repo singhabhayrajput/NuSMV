@@ -1,0 +1,56 @@
+MODULE main
+  VAR
+	choosing : array 0..3 of boolean;
+	number : array 0..3 of 0 .. 5;
+	proc0 : process BE(choosing,number,0);
+	proc1 : process BE(choosing,number,1);
+	proc2 : process BE(choosing,number,2);
+	proc3 : process BE(choosing,number,3);
+  ASSIGN
+	init(choosing[0]) := FALSE;
+	init(choosing[1]) := FALSE;
+	init(choosing[2]) := FALSE;
+	init(choosing[3]) := FALSE;
+	init(number[0]) := 0;
+	init(number[1]) := 0;
+	init(number[2]) := 0;
+	init(number[3]) := 0;
+  SPEC AG ! (proc0.state = CS & proc1.state = CS & proc2.state=CS & proc3.state=CS)
+  SPEC AG (proc0.state        = wait -> AF proc0.state = CS)	
+
+MODULE BE(choosing,number,i)
+  VAR
+	state : {NCS,CS,chsg,wait};
+
+  DEFINE
+	j := (i + 1) mod 4;
+	k := (i + 2) mod 4;
+	l := (i + 3) mod 4;
+  ASSIGN
+	init(state) := NCS;
+	next(choosing[i]) := case
+	state = NCS &(number[i]=0): TRUE;
+	state = chsg &(number[i] != 0) : FALSE;
+	TRUE : choosing[i];
+	esac;
+  next(number[i]) := case
+	state = NCS & (number[i]>0) &(choosing[i]=FALSE): 0;
+	state = chsg & (choosing[i] = TRUE) : ((number[j] > 4 | number[k] > 4 | number[l] > 4) ? number[i] : max(number[j],max( number[k], number[l])) + 1) ;
+	TRUE : number[i];
+  esac;
+  next(state) := case
+	state = NCS & (choosing[i] =FALSE) : state;
+	state = NCS & (choosing[i] =TRUE) : chsg;
+	state = chsg &(choosing[i]=FALSE)  : wait;
+	state = wait & (number[j]!=0) & (number[i]>number[j]) | (number[k]!=0) & (number[i]>number[k]) | (number[l]!=0) & (number[i]>number[l]): wait;
+	state = wait & (choosing[j]=FALSE) & (choosing[k]=FALSE) & (choosing[l]=FALSE) & ((number[j]=0) & (number[k]=0) & (number[l]=0)) : CS;
+	state = wait & (choosing[j]=FALSE) & (choosing[k]=FALSE) & (choosing[l]=FALSE) & ((number[j]=0) & (number[k]=0) & (number[l]>number[i])) : CS;
+	state = wait & (choosing[j]=FALSE) & (choosing[k]=FALSE) & (choosing[l]=FALSE) & ((number[j]=0) & (number[l]=0) & (number[k]>number[i])) : CS;
+	state = wait & (choosing[j]=FALSE) & (choosing[k]=FALSE) & (choosing[l]=FALSE) & ((number[k]=0) & (number[l]=0) & (number[j]>number[i])) : CS;
+	state = wait & (choosing[j]=FALSE) & (choosing[k]=FALSE) & (choosing[l]=FALSE) & ((number[k]=0) & (number[l]>number[i]) & (number[j]>number[i])) : CS;
+	state = wait & (choosing[j]=FALSE) & (choosing[k]=FALSE) & (choosing[l]=FALSE) & ((number[l]=0) & (number[k]>number[i]) & (number[j]>number[i])) : CS;
+	state = wait & (choosing[j]=FALSE) & (choosing[k]=FALSE) & (choosing[l]=FALSE) & ((number[j]=0) & (number[l]>number[i]) & (number[k]>number[i])) : CS;
+	state = wait & (choosing[j]=FALSE) & (choosing[k]=FALSE) & (choosing[l]=FALSE) & ((number[k]>number[i]) & (number[l]>number[i]) & (number[j]>number[i])) : CS;
+       state= CS : {CS, NCS};
+       TRUE : state;
+  esac;

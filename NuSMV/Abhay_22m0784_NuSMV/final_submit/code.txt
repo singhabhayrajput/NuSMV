@@ -1,0 +1,6 @@
+read_model -i simple.smv
+flatten_hierarchy       
+encode_variablesr
+build_model
+..
+

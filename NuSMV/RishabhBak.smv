@@ -1,0 +1,50 @@
+MODULE main
+  VAR
+	choosing : array 0..1 of boolean;
+	numBakeryr   : array 0..1 of 0 .. 3;
+	proc0    : process Bakery(choosing,numBakeryr,0);
+	proc1    : process Bakery(choosing,numBakeryr,1);
+  ASSIGN
+	init(choosing[0]) := FALSE;
+	init(choosing[1]) := FALSE;
+	init(numBakeryr[0]) := 0;
+	init(numBakeryr[1]) := 0;
+  SPEC AG ! (proc0.state = critical_section & proc1.state = critical_section)
+  SPEC AG (proc0.state        = wait -> AF proc0.state = critical_section)	
+
+MODULE Bakery(choosing,numBakeryr,i)
+  VAR
+       state : {prologue,critical_section,Try_to_enter,wait,epilogue};
+       
+  DEFINE
+  j := case
+     i = 0 : 1;
+     i = 1 : 0; 
+  esac;    
+            
+  ASSIGN
+       init(state)       := prologue;
+       next(choosing[i]) := case
+             state = prologue &(numBakeryr[i]=0): TRUE;
+             state = Try_to_enter &(numBakeryr[i] != 0) : FALSE;
+             TRUE : choosing[i];
+       esac;
+       next(numBakeryr[i]) := case
+       	state = epilogue & (numBakeryr[i]>0) &(choosing[i]=FALSE): 0;
+       	state = Try_to_enter & (choosing[i] = TRUE) : (numBakeryr[j]>2 ? numBakeryr[i]:1+numBakeryr[j]);
+       	TRUE : numBakeryr[i];
+      esac;
+      next(state)       := case
+              state = prologue & (choosing[i] =FALSE) : state;
+              state = prologue & (choosing[i] =TRUE) : Try_to_enter;
+              state = wait & (numBakeryr[j]!=0) & (numBakeryr[i]>numBakeryr[j]) : wait;
+              state = Try_to_enter &(choosing[i]=FALSE)  & (numBakeryr[i]>0) : wait;
+              state = wait & (choosing[j]=FALSE) & (numBakeryr[j]=0) : critical_section;
+              state = wait & (choosing[j]=FALSE) & (numBakeryr[j]>numBakeryr[i]) : critical_section;
+              state=  critical_section   : {critical_section, epilogue};
+              state = epilogue: prologue;
+              TRUE : state;
+      esac;         
+              
+                 
+       	     

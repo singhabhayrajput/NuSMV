@@ -1,0 +1,63 @@
+MODULE main
+
+VAR
+f0 : {true, false};
+f1 : {true, false};
+f2 : {true, false};
+turn : {0, 1, 2};
+p0 : process proc(turn, f0, f1, f2, 0);
+p1 : process proc(turn, f1, f2, f0, 1);
+p2 : process proc(turn, f2, f0, f1, 2);
+
+ASSIGN
+init(f0) := false;
+init(f1) := false;
+init(f2) := false;
+init(turn) := 0;
+
+SPEC AG (p0.state        = test_fjk -> AF p0.state = critical)	
+
+
+MODULE proc(turn, fi, fj, fk, i)
+
+VAR
+state : {noncritical, test_fjk, test_turn, set_flag_to_zero, critical};
+
+DEFINE
+j := case
+	i = 0 : 1;
+	i = 1 : 2;
+	i = 2 : 0;
+     esac;
+k := case
+	i = 0 : 2;
+	i = 1 : 0;
+	i = 2 : 1;
+     esac;
+
+ASSIGN
+init(state) := noncritical;
+next(state) :=	case
+			state = noncritical : {noncritical, test_fjk};
+			state = test_fjk & (fj = false) & (fk=false) : critical;
+			state = test_fjk & ((fj = true) | (fk=true)) : test_turn;
+			state = test_turn & (turn != i) : set_flag_to_zero;
+			state = test_turn & (turn = i) : test_fjk;
+			state = set_flag_to_zero & (turn != i) : set_flag_to_zero;
+			state = set_flag_to_zero & (turn =i) : test_fjk;
+			state = critical : {critical, noncritical};
+			TRUE : state;
+		esac;
+next(fi) :=	case
+			state = noncritical & next(state) = test_fjk : true;
+			state = test_turn & (turn != i) : false;
+			state = set_flag_to_zero & (turn = i) : true;
+			state = critical &	next(state) = noncritical : false;
+			TRUE : fi;
+		esac;
+next(turn) :=	case
+			state = critical & next(state) = noncritical : {j,k};
+			TRUE : turn;
+		esac;
+
+

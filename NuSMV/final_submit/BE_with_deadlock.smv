@@ -1,0 +1,51 @@
+MODULE main
+  VAR
+	choosing : array 0..1 of boolean;
+	number   : array 0..1 of 0 .. 3;
+	proc0    : process BE(choosing,number,0);
+	proc1    : process BE(choosing,number,1);
+  ASSIGN
+	init(choosing[0]) := FALSE;
+	init(choosing[1]) := FALSE;
+	init(number[0]) := 0;
+	init(number[1]) := 0;
+  SPEC AG ! (proc0.state = CS & proc1.state = CS)
+  SPEC AG (proc1.state = wait -> AF proc1.state = CS)	
+
+MODULE BE(choosing,number,i)
+  VAR
+       state : {NCS,CS,chsg,wait};
+       
+  DEFINE
+  j := case
+     i = 0 : 1;
+     i = 1 : 0; 
+  esac;    
+            
+  ASSIGN
+       init(state)       := NCS;
+       next(choosing[i]) := case
+             state = NCS &(number[i]=0): TRUE;
+             state = chsg &(number[i] != 0) : FALSE;
+             TRUE : choosing[i];
+       esac;
+       next(number[i]) := case
+       	
+       	state = chsg & (choosing[i] = TRUE) : (number[j]>2 ? number[i]:1+number[j]);
+       	state = NCS & (number[i]>0) &(choosing[i]=FALSE): 0;
+       	TRUE : number[i];
+      esac;
+      next(state)       := case
+              state = NCS & (choosing[i] =FALSE) &(number[i]=0) : state;
+              state = NCS & (choosing[i] =TRUE) &(number[i]=0) : chsg;
+              state = chsg &(choosing[i]=FALSE)  : CS;
+              state = wait & (number[j]!=0) & (number[i]>number[j]) : wait;
+              state = wait & (choosing[j]=FALSE) & (number[j]=0) : CS;
+              state = wait & (choosing[j]=FALSE) & (number[j]>number[i]) : CS;            
+          
+              state=  CS   : {NCS};
+              TRUE : state;
+      esac;         
+              
+                 
+       	     
